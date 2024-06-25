@@ -159,6 +159,8 @@ def build_image(registry: str, project_name: str, ref: str, repo: str, project_i
             app.logger.info("build success image: {}".format(image))
             connect_db("UPDATE build_project SET latest_image = %s WHERE project_id = %s;", image, project_id)
             return {"result": image}
+        else:
+            return {"result": "failed"}
     except (FileNotFoundError, subprocess.CalledProcessError) as e:
         app.logger.error("build image failed: {}".format(e))
         return {"result": "failed"}
