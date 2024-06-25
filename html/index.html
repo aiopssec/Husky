@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Husky Project List</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .loader {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3498db;
+            animation: spin 1s infinite linear;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: none; /* Initially hidden */
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container mt-5">
+    <h2>Husky Project List</h2>
+    <br>
+    <h6>Select Environment</h6>
+    <form id="registryForm">
+        <div id="registryOptions" style="display: flex;">
+            <!-- 这里将会动态生成单选框选项 -->
+        </div>
+    </form>
+    <br>
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Project ID</th>
+            <th>Project Name</th>
+            <th>Branch Name/Commit ID</th>
+            <th>Action</th>
+            <th>Latest Image</th>
+        </tr>
+        </thead>
+        <tbody id="projectTableBody">
+        <!-- Project rows will be populated dynamically -->
+        </tbody>
+    </table>
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center" id="pagination">
+            <!-- Pagination links will be populated dynamically -->
+        </ul>
+    </nav>
+</div>
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+    var projects = [];
+    var itemsPerPage = 100; // 每页显示的项目数
+    var currentPage = 1;  // 当前页码
+
+    // Function to fetch projects from server
+    function fetchProjects() {
+        fetch('/api/projects', {
+            method: 'GET',
+            headers: {
+                'Token': sessionStorage.getItem('token')
+            }
+        })
+            .then(response => {
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                }
+                return response.json();
+            })
+            .then(data => {
+                projects = data;
+                populateProjects(currentPage);
+                renderPagination();
+            });
+    }
+
+    // Function to populate project table
+    function populateProjects(page) {
+        var startIndex = (page - 1) * itemsPerPage;
+        var endIndex = startIndex + itemsPerPage;
+        var pageProjects = projects.slice(startIndex, endIndex);
+
+        var projectTableBody = $('#projectTableBody');
+        projectTableBody.empty(); // Clear previous content
+
+        pageProjects.forEach(function (project) {
+            var row = `<tr id="project_${project.project_id}">
+                  <td>${project.project_id}</td>
+                  <td>${project.project_name}</td>
+                  <td><input type="text" id="branch_${project.project_id}" class="form-control"></td>
+                  <td>
+                    <button class="btn btn-primary btn-sm" onclick="startBuild(${project.project_id})">Build Image</button>
+                    <div id="loading_${project.project_id}" class="loader mt-1"></div>
+                    <span id="loadingText_${project.project_id}" class="ml-2"></span>
+                  </td>
+                  <td id="status_${project.project_id}">${project.latest_image}</td>
+                </tr>`;
+            projectTableBody.append(row);
+        });
+    }
+
+    function renderPagination() {
+        var totalPages = Math.ceil(projects.length / itemsPerPage);
+        var paginationDiv = $('#pagination');
+        paginationDiv.empty();
+
+        for (var i = 1; i <= totalPages; i++) {
+            var liClass = i === currentPage ? 'page-item active' : 'page-item';
+            var pageLink = `<li class="${liClass} page-item"><a class="page-link" href="javascript:void(0)">${i}</a></li>`;
+            paginationDiv.append(pageLink);
+        }
+
+        // 分页按钮点击事件
+        paginationDiv.find('.page-link').on('click', function () {
+            currentPage = parseInt($(this).text());
+            populateProjects(currentPage);
+            renderPagination();
+        });
+    }
+
+    // Function to start build process
+    function startBuild(projectId) {
+        var branchInput = $(`#branch_${projectId}`);
+        var branchOrCommit = branchInput.val().trim();
+        if (!branchOrCommit) {
+            alert('Please enter a branch name or commit ID.');
+            return;
+        }
+
+        // Show loading indicator
+        var loadingIndicator = $(`#loading_${projectId}`);
+        var loadingText = $(`#loadingText_${projectId}`);
+        loadingIndicator.show(); // Show loading indicator
+        loadingText.text('Building in progress...');
+
+        const registryId = document.querySelector('input[name="registry"]:checked').value;
+
+        // Prepare data for POST request
+        var postData = {
+            project_id: projectId,
+            ref: branchOrCommit,
+            register_id: Number(registryId)
+        };
+
+        // Send POST request to build endpoint
+        fetch('/api/build', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Token': sessionStorage.getItem('token')
+            },
+            body: JSON.stringify(postData)
+        })
+            .then(response => {
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.result) {
+                    loadingIndicator.hide(); // Hide loader
+                    loadingText.text(''); // Clear loading text
+                    // Update status with tag from server response
+                    var result = data.result;
+                    var buildStatus = `<span class="badge badge-success ml-2">${result}</span>`;
+                    $(`#status_${projectId}`).html(buildStatus);
+                }
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // 使用Fetch API获取数据
+        fetch('/api/registry', {
+            method: 'GET',
+            headers: {
+                'Token': sessionStorage.getItem('token')
+            }
+        })
+            .then(response => {
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                }
+                return response.json();
+            })
+            .then(data => {
+                const registryOptions = document.getElementById('registryOptions');
+                data.forEach((registry, index) => {
+                    const radioBtn = document.createElement('input');
+                    radioBtn.type = 'radio';
+                    radioBtn.id = 'registry_' + registry.registry_id;
+                    radioBtn.name = 'registry';
+                    radioBtn.value = registry.registry_id;
+                    radioBtn.style.marginRight = '10px'; // 设置单选框间距
+
+                    const label = document.createElement('label');
+                    label.setAttribute('for', 'registry_' + registry.registry_id);
+                    label.textContent = registry.registry_name;
+                    label.style.marginRight = '20px'; // 设置标签间距
+
+                    registryOptions.appendChild(radioBtn);
+                    registryOptions.appendChild(label);
+
+                    // 默认选择第一个选项
+                    if (index === 0) {
+                        radioBtn.checked = true;
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+            });
+    });
+
+    // Initial function call
+    fetchProjects(); // Fetch projects from server on page load
+
+</script>
+</body>
+</html>
