@@ -4,19 +4,18 @@ Husky(哈士奇)是一个Docker容器镜像制作系统，项目诞生于2018年
 系统默认支持使用Maven包管理的Java 8、Nodejs、C++语言开发的Docker镜像制作，可按需扩展和定制化开发，使用多阶构建可
 支持绝大多数的开发语言。系统主要特色功能：精准灵活的用户权限控制、简单易用易扩展、支持API自动化。
 ### 使用环境要求：
-1. 部署服务器最低安装配置1核1G，存储空间10G，适实际使用需求提高配置。
+1. 部署服务器最低安装配置1核1G，存储空间10G，适实际使用情况提高配置。
 2. 部署服务器必需安装Docker，并且能够访问用于存放打包好的Docker镜像仓库。
 3. 部署服务器能够访问Git代码仓库，账号拥有拉取代码的权限，并配置使用SSH KEY登录访问。
 
-### 安装步骤(以下操作可根据实际情况修改)
+### 安装步骤(以下操作可根据实际情况调整)
 1. 在部署服务器上，使用如下Docker命令部署PostgreSQL数据库。
 ```
 docker run -d --name husky_postgres -p 5432:5432 -e POSTGRES_USER=husky -e POSTGRES_PASSWORD=husky -e POSTGRES_DB=Husky -v /data/husky/postgres:/var/lib/postgresql/data --restart=always postgres:16.3-alpine3.20
 ```
 2. 使用DataGrip或Navicat等数据库管理工具，连上Postgres数据库，执行如下SQL语句，创建表结构。
 ```
-create sequence project_id_seq;
-create sequence registry_id_seq;
+create sequence sequence_id;
 
 create table build_project
 (
@@ -46,7 +45,7 @@ create table husky_user
 
 INSERT INTO public.husky_user (password, username, permission) VALUES ('admin', 'admin', '{"project_id": [], "registry_id": []}');
 ```
-演示数据，按需使用（非必要步骤）
+演示数据，按需执行（非必要步骤）
 ```
 --- 插入演示项目
 INSERT INTO public.build_project (project_id, project_name, repository_address, latest_image) VALUES (2, 'venus', 'git@gitlab.io/group/venus.git', null);
@@ -61,8 +60,8 @@ INSERT INTO public.build_registry (registry_id, registry_name, registry_address)
 INSERT INTO public.husky_user (password, username, permission) VALUES ('test', 'test', '{"project_id": [1, 4], "registry_id": [3]}');
 INSERT INTO public.husky_user (password, username, permission) VALUES ('guest', 'guest', '{"project_id": [0], "registry_id": [0]}');
 ```
-3. 修改`ssh/id_rsa`填入SSH KEY。
-4. 根据自己的实际情况修改如下环境变量后，执行run.sh脚本启动。
+3. 修改`ssh/id_rsa`填入SSH KEY私钥。
+4. 根据实际使用情况修改如下环境变量后，执行run.sh脚本启动。
 * `DB_HOST` 数据库地址，默认：localhost
 * `DB_PORT` 数据库端口，默认：5432
 * `DATABASE` 数据库名称，默认：Husky
@@ -86,7 +85,7 @@ INSERT INTO public.husky_user (password, username, permission) VALUES ('guest', 
 
 1. 登录
 ```
-curl -H "Content-Type: application/json" -XPOST http://127.0.0.1/api/login -d '{"username":"test","password":"test"}'
+curl -H "Content-Type: application/json" -XPOST http://127.0.0.1/api/login -d '{"username":"admin","password":"admin"}'
 ```
 2. 获取项目
 ```
