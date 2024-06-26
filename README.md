@@ -69,7 +69,8 @@ INSERT INTO public.husky_user (password, username, permission) VALUES ('guest', 
 * `DB_PASSWORD` 数据库密码，默认：husky
 * `SECRET_KEY` JWT加密密钥，默认：Husky
 * `TOKEN_EXPIRE_TIME` Token过期时间，默认：8小时
-5. 使用命令`docker ps -a`查看到容器状态为`healthy`，即可使用浏览器访问：`http://your_server_ip` 看到登录界面即部署成功。
+5. ssl的证书文件按需替换（非必要步骤）
+6. 使用命令`docker ps -a`查看到容器状态为`healthy`，即可使用浏览器访问：`https://your_server_ip` 看到登录界面即部署成功。
 ![img.png](img_2.png)
 
 ### 使用说明

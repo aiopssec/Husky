@@ -11,8 +11,9 @@ RUN apk update \
 
 WORKDIR /husky
 HEALTHCHECK CMD netstat -tlnp | grep 5000 || exit 1
-EXPOSE 80
+EXPOSE 443
 
+ADD ssl /etc/ssl/husky
 ADD ssh /root/.ssh
 ADD script /script
 ADD nginx.conf /etc/nginx/nginx.conf
